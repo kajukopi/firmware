@@ -116,7 +116,9 @@ void setup() {
   analogWriteRange(1023);
   analogWrite(ledPin, 1023); // LED OFF
 
-  myServo.attach(servoPin);
+  //myServo.attach(servoPin);
+  myServo.attach(servoPin, 600, 2400); // safer margin
+
   myServo.write(currentServoAngle); // Start at mid-angle
 
   while (WiFi.status() != WL_CONNECTED) {
