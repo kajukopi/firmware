@@ -1,32 +1,29 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
-#include <ESP8266HTTPUpdateServer.h>
-#include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
+#include <ESP8266HTTPUpdateServer.h>
 #include <Servo.h>
+#include <EEPROM.h> // ✅ EEPROM for saving settings
 
 const char* ssid = "karimroy";
 const char* password = "09871234";
 
-// Set static IP
-IPAddress local_IP(192, 168, 1, 50);
-IPAddress gateway(192, 168, 1, 1);
-IPAddress subnet(255, 255, 255, 0);
-IPAddress dns(8, 8, 8, 8); // optional
-
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater;
 
-const int ledPin = 2;     // Onboard LED (active LOW)
-const int servoPin = D5;  // GPIO14
+const int ledPin = 2;      // Onboard LED (active LOW)
+const int servoPin = D5;   // GPIO14
 
 Servo myServo;
-int currentServoAngle = 90;
+
+#define EEPROM_SIZE 4
+#define ADDR_BRIGHTNESS 0
+#define ADDR_SERVO 1
+
+int currentBrightness = 100;      // default brightness
+int currentServoAngle = 90;       // default angle
 
 void handleRoot() {
-  int currentPwm = analogRead(ledPin);
-  int brightness = map(1023 - currentPwm, 0, 1023, 0, 100); // invert
-
   String html = R"rawliteral(
     <!DOCTYPE html>
     <html>
@@ -87,17 +84,22 @@ void handleRoot() {
     </html>
   )rawliteral";
 
-  html.replace("%BRIGHTNESS%", String(brightness));
+  html.replace("%BRIGHTNESS%", String(currentBrightness));
   html.replace("%SERVO%", String(currentServoAngle));
   server.send(200, "text/html", html);
 }
 
 void handleBrightness() {
   if (server.hasArg("value")) {
-    int brightness = server.arg("value").toInt();
-    brightness = constrain(brightness, 0, 100);
-    int pwm = map(100 - brightness, 0, 100, 0, 1023); // active LOW
+    currentBrightness = server.arg("value").toInt();
+    currentBrightness = constrain(currentBrightness, 0, 100);
+    int pwm = map(100 - currentBrightness, 0, 100, 0, 1023); // active LOW
     analogWrite(ledPin, pwm);
+
+    // Save to EEPROM
+    EEPROM.write(ADDR_BRIGHTNESS, currentBrightness);
+    EEPROM.commit();
+
     server.send(200, "text/plain", "OK");
   } else {
     server.send(400, "text/plain", "Missing value");
@@ -110,6 +112,11 @@ void handleServo() {
     angle = constrain(angle, 0, 180);
     myServo.write(angle);
     currentServoAngle = angle;
+
+    // Save to EEPROM
+    EEPROM.write(ADDR_SERVO, currentServoAngle);
+    EEPROM.commit();
+
     server.send(200, "text/plain", "Servo set");
   } else {
     server.send(400, "text/plain", "Missing angle");
@@ -118,48 +125,51 @@ void handleServo() {
 
 void setup() {
   Serial.begin(115200);
+  WiFi.begin(ssid, password);
+
   pinMode(ledPin, OUTPUT);
   analogWriteRange(1023);
-  analogWrite(ledPin, 1023); // LED OFF
 
+  EEPROM.begin(EEPROM_SIZE); // Init EEPROM
+
+  // Load from EEPROM
+  currentBrightness = EEPROM.read(ADDR_BRIGHTNESS);
+  currentBrightness = constrain(currentBrightness, 0, 100);
+  currentServoAngle = EEPROM.read(ADDR_SERVO);
+  currentServoAngle = constrain(currentServoAngle, 0, 180);
+
+  analogWrite(ledPin, map(100 - currentBrightness, 0, 100, 0, 1023));
   myServo.attach(servoPin, 600, 2400);
   myServo.write(currentServoAngle);
 
-  WiFi.config(local_IP, gateway, subnet, dns); // Set static IP
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
 
-  Serial.println("\nWiFi connected.");
-  Serial.print("IP Address: ");
+  Serial.println();
+  Serial.print("Connected to WiFi. IP: ");
   Serial.println(WiFi.localIP());
-
-  // Start mDNS with name 'karim'
-  if (MDNS.begin("karim")) {
-    Serial.println("mDNS started: http://karim.local");
-  } else {
-    Serial.println("Error starting mDNS");
-  }
 
   server.on("/", handleRoot);
   server.on("/led/brightness", handleBrightness);
   server.on("/servo", handleServo);
   httpUpdater.setup(&server);
+
   server.begin();
   Serial.println("HTTP server started");
-
-  MDNS.addService("http", "tcp", 80);
 
   ArduinoOTA.setHostname("NodeMCU-OTA");
   ArduinoOTA.begin();
   Serial.println("OTA Ready");
+
+  Serial.print("Initial Brightness: ");
+  Serial.println(currentBrightness);
+  Serial.print("Initial Servo Angle: ");
+  Serial.println(currentServoAngle);
 }
 
 void loop() {
   server.handleClient();
   ArduinoOTA.handle();
-  MDNS.update();
 }
