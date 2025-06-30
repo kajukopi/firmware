@@ -9,9 +9,12 @@ const char* password = "09871234";
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater;
 
-const int ledPin = 2; // Onboard LED
+const int ledPin = 2; // Onboard LED (active LOW)
 
 void handleRoot() {
+  int currentPwm = analogRead(ledPin); // Note: not always accurate on ESP8266
+  int brightness = map(1023 - currentPwm, 0, 1023, 0, 100); // Invert for active LOW
+
   String html = R"rawliteral(
     <!DOCTYPE html>
     <html>
@@ -23,81 +26,66 @@ void handleRoot() {
         body {
           font-family: Arial, sans-serif;
           background: #f7f7f7;
-          color: #333;
-          margin: 0;
-          padding: 0;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
           text-align: center;
+          padding: 2em;
         }
-        h1 {
-          color: #4CAF50;
-          margin-bottom: 10px;
-        }
-        .status {
-          margin: 10px 0;
-          font-size: 1.2rem;
-        }
+        h1 { color: #4CAF50; }
         button {
-          display: inline-block;
           padding: 10px 20px;
           margin: 10px;
-          font-size: 1rem;
-          color: #fff;
-          background-color: #4CAF50;
           border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: background-color 0.3s;
+          background: #4CAF50;
+          color: white;
+          border-radius: 6px;
         }
-        button:hover {
-          background-color: #45a049;
+        input[type="range"] {
+          width: 80%;
+          margin: 20px auto;
         }
-        a {
-          text-decoration: none;
-        }
-        .footer {
-          margin-top: 20px;
-          font-size: 0.9rem;
+        .slider-label {
+          font-size: 1.2rem;
         }
       </style>
     </head>
     <body>
       <h1>NodeMCU LED Control</h1>
-      <div class="status">LED is <b>%STATE%</b></div>
-      <a href="/led/on"><button>Turn ON</button></a>
-      <a href="/led/off"><button>Turn OFF</button></a>
-      <div class="footer">
-        <p><a href="/update"><button>OTA Firmware Upload</button></a></p>
-      </div>
+      <div class="slider-label">Brightness: <span id="brightnessVal">%BRIGHTNESS%</span>%</div>
+      <input type="range" id="brightness" min="0" max="100" value="%BRIGHTNESS%" oninput="setBrightness(this.value)">
+      <p><a href="/update"><button>OTA Firmware Upload</button></a></p>
+
+      <script>
+        function setBrightness(val) {
+          document.getElementById("brightnessVal").innerText = val;
+          fetch(`/led/brightness?value=${val}`)
+            .then(res => console.log("Brightness set to", val));
+        }
+      </script>
     </body>
     </html>
   )rawliteral";
 
-  html.replace("%STATE%", digitalRead(ledPin) == LOW ? "ON" : "OFF");
+  html.replace("%BRIGHTNESS%", String(brightness));
   server.send(200, "text/html", html);
 }
 
-void handleLedOn() {
-  digitalWrite(ledPin, LOW); // LED ON (active LOW)
-  server.sendHeader("Location", "/");
-  server.send(303);
-}
-
-void handleLedOff() {
-  digitalWrite(ledPin, HIGH); // LED OFF
-  server.sendHeader("Location", "/");
-  server.send(303);
+void handleBrightness() {
+  if (server.hasArg("value")) {
+    int brightness = server.arg("value").toInt();
+    brightness = constrain(brightness, 0, 100);
+    int pwm = map(100 - brightness, 0, 100, 0, 1023); // Invert for active LOW
+    analogWrite(ledPin, pwm);
+    server.send(200, "text/plain", "OK");
+  } else {
+    server.send(400, "text/plain", "Missing value");
+  }
 }
 
 void setup() {
   Serial.begin(115200);
   WiFi.begin(ssid, password);
   pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, HIGH); // Start with LED OFF
+  analogWriteRange(1023);
+  analogWrite(ledPin, 1023); // LED OFF (active LOW)
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -105,16 +93,12 @@ void setup() {
   }
 
   Serial.println();
-  Serial.println("WiFi connected at: ");
+  Serial.println("WiFi connected at:");
   Serial.println(WiFi.localIP());
 
-  // Web server routes
   server.on("/", handleRoot);
-  server.on("/led/on", handleLedOn);
-  server.on("/led/off", handleLedOff);
-
-  // OTA firmware page
-  httpUpdater.setup(&server); // /update
+  server.on("/led/brightness", handleBrightness);
+  httpUpdater.setup(&server);
 
   server.begin();
   Serial.println("HTTP server started");
@@ -128,5 +112,3 @@ void loop() {
   server.handleClient();
   ArduinoOTA.handle();
 }
-
-// Edit
