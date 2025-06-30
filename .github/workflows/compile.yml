@@ -1,4 +1,4 @@
-name: Compile Firmware
+name: Compile NodeMCU Firmware
 
 on:
   push:
@@ -9,10 +9,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Compile for NodeMCU
+      - name: Compile firmware
         uses: arduino/compile-sketches@v1
         with:
           fqbn: esp8266:esp8266:nodemcuv2
@@ -22,9 +22,14 @@ jobs:
           sketch-paths: |
             - .
 
-      - name: Upload .bin file
+      - name: Rename .bin file
+        run: |
+          BIN=$(find . -name "*.bin" | head -n 1)
+          echo "Found binary: $BIN"
+          cp "$BIN" firmware.bin
+
+      - name: Upload firmware.bin
         uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: |
-            ./build/esp8266.esp8266.nodemcuv2/firmware.bin
+          path: firmware.bin
