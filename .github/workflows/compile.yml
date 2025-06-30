@@ -22,14 +22,12 @@ jobs:
           sketch-paths: |
             - .
 
-      - name: Rename .bin file
-        run: |
-          BIN=$(find . -name "*.bin" | head -n 1)
-          echo "Found binary: $BIN"
-          cp "$BIN" firmware.bin
+      - name: Show all .bin files (debug)
+        run: find . -name "*.bin"
 
-      - name: Upload firmware.bin
+      - name: Upload all compiled .bin files
         uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: firmware.bin
+          path: |
+            **/*.bin
