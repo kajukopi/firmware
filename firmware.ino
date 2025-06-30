@@ -2,7 +2,8 @@
 #include <ESP8266WebServer.h>
 #include <ArduinoOTA.h>
 #include <ESP8266HTTPUpdateServer.h>
-#include <Servo.h> // ✅ Servo support
+#include <ESP8266mDNS.h>  // <-- Add this
+#include <Servo.h>
 
 const char* ssid = "karimroy";
 const char* password = "09871234";
@@ -10,15 +11,15 @@ const char* password = "09871234";
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater;
 
-const int ledPin = 2; // Onboard LED (active LOW)
-const int servoPin = D5; // GPIO14 (can change as needed)
+const int ledPin = 2;
+const int servoPin = D5;
 
 Servo myServo;
 int currentServoAngle = 90;
 
 void handleRoot() {
-  int currentPwm = analogRead(ledPin); // not accurate
-  int brightness = map(1023 - currentPwm, 0, 1023, 0, 100); // Invert LOW
+  int currentPwm = analogRead(ledPin);
+  int brightness = map(1023 - currentPwm, 0, 1023, 0, 100);
 
   String html = R"rawliteral(
     <!DOCTYPE html>
@@ -89,7 +90,7 @@ void handleBrightness() {
   if (server.hasArg("value")) {
     int brightness = server.arg("value").toInt();
     brightness = constrain(brightness, 0, 100);
-    int pwm = map(100 - brightness, 0, 100, 0, 1023); // active LOW
+    int pwm = map(100 - brightness, 0, 100, 0, 1023);
     analogWrite(ledPin, pwm);
     server.send(200, "text/plain", "OK");
   } else {
@@ -114,12 +115,10 @@ void setup() {
   WiFi.begin(ssid, password);
   pinMode(ledPin, OUTPUT);
   analogWriteRange(1023);
-  analogWrite(ledPin, 1023); // LED OFF
+  analogWrite(ledPin, 1023);
 
-  //myServo.attach(servoPin);
-  myServo.attach(servoPin, 600, 2400); // safer margin
-
-  myServo.write(currentServoAngle); // Start at mid-angle
+  myServo.attach(servoPin, 600, 2400);
+  myServo.write(currentServoAngle);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -127,16 +126,25 @@ void setup() {
   }
 
   Serial.println();
-  Serial.println("WiFi connected at:");
+  Serial.print("WiFi connected at IP: ");
   Serial.println(WiFi.localIP());
+
+  // Start mDNS responder
+  if (MDNS.begin("esp8266")) {
+    Serial.println("mDNS started: http://esp8266.local");
+  } else {
+    Serial.println("Error starting mDNS");
+  }
 
   server.on("/", handleRoot);
   server.on("/led/brightness", handleBrightness);
   server.on("/servo", handleServo);
   httpUpdater.setup(&server);
-
   server.begin();
   Serial.println("HTTP server started");
+
+  // Add mDNS service
+  MDNS.addService("http", "tcp", 80);
 
   ArduinoOTA.setHostname("NodeMCU-OTA");
   ArduinoOTA.begin();
@@ -146,4 +154,5 @@ void setup() {
 void loop() {
   server.handleClient();
   ArduinoOTA.handle();
+  MDNS.update(); // <- Needed for mDNS to function
 }
