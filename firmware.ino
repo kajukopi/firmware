@@ -13,11 +13,68 @@ const int ledPin = 2; // Onboard LED
 
 void handleRoot() {
   String html = R"rawliteral(
-    <h1>NodeMCU LED Control</h1>
-    <p>LED is <b>%STATE%</b></p>
-    <a href="/led/on"><button>Turn ON</button></a>
-    <a href="/led/off"><button>Turn OFF</button></a>
-    <p><a href="/update">OTA Firmware Upload</a></p>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>NodeMCU LED Control</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          background: #f7f7f7;
+          color: #333;
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          text-align: center;
+        }
+        h1 {
+          color: #4CAF50;
+          margin-bottom: 10px;
+        }
+        .status {
+          margin: 10px 0;
+          font-size: 1.2rem;
+        }
+        button {
+          display: inline-block;
+          padding: 10px 20px;
+          margin: 10px;
+          font-size: 1rem;
+          color: #fff;
+          background-color: #4CAF50;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: background-color 0.3s;
+        }
+        button:hover {
+          background-color: #45a049;
+        }
+        a {
+          text-decoration: none;
+        }
+        .footer {
+          margin-top: 20px;
+          font-size: 0.9rem;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>NodeMCU LED Control</h1>
+      <div class="status">LED is <b>%STATE%</b></div>
+      <a href="/led/on"><button>Turn ON</button></a>
+      <a href="/led/off"><button>Turn OFF</button></a>
+      <div class="footer">
+        <p><a href="/update"><button>OTA Firmware Upload</button></a></p>
+      </div>
+    </body>
+    </html>
   )rawliteral";
 
   html.replace("%STATE%", digitalRead(ledPin) == LOW ? "ON" : "OFF");
