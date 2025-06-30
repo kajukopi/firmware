@@ -1,33 +1,37 @@
-name: Compile NodeMCU Firmware
+name: Build ESP8266 Binary
 
 on:
   push:
     paths:
-      - '**.ino'
+      - '**/*.ino'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v3
 
-      - name: Compile firmware
-        uses: arduino/compile-sketches@v1
-        with:
-          fqbn: esp8266:esp8266:nodemcuv2
-          platforms: |
-            - name: esp8266:esp8266
-              source-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
-          sketch-paths: |
-            - .
+    - name: Install Arduino CLI manually
+      run: |
+        curl -fsSL https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Linux_64bit.tar.gz | tar -xzf -
+        sudo mv arduino-cli /usr/local/bin/
+        arduino-cli version
 
-      - name: Show all .bin files (debug)
-        run: find . -name "*.bin"
+    - name: Install ESP8266 platform
+      run: |
+        arduino-cli config init
+        arduino-cli config add board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
+        arduino-cli core update-index
+        arduino-cli core install esp8266:esp8266
 
-      - name: Upload all compiled .bin files
-        uses: actions/upload-artifact@v4
-        with:
-          name: firmware
-          path: |
-            **/*.bin
+    - name: Compile sketch to bin/
+      run: |
+        mkdir -p bin
+        arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 . --output-dir bin
+
+    - name: Upload firmware from bin/
+      uses: actions/upload-artifact@v4
+      with:
+        name: firmware
+        path: bin/*.bin
