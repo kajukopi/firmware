@@ -42,7 +42,7 @@ const char html[] PROGMEM = R"rawliteral(
 
 void setup() {
   pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, HIGH);  // OFF
+  digitalWrite(ledPin, HIGH);  // LED OFF
 
   Serial.begin(115200);
   WiFi.begin(ssid, password);
@@ -50,7 +50,9 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500); Serial.print(".");
   }
-  Serial.println("\nWiFi connected. IP: " + WiFi.localIP().toString());
+  Serial.println("\nConnected to WiFi");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
 
   server.on("/", HTTP_GET, []() {
     server.send_P(200, "text/html", html);
