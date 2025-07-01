@@ -5,6 +5,11 @@
 #include <WiFiUdp.h>
 #include <Updater.h>
 
+// Include HTML headers
+#include "pages/page_index.h"
+#include "pages/page_update.h"
+#include "pages/page_reboot.h"
+
 const char* ssid = "karimroy";
 const char* password = "09871234";
 
@@ -15,70 +20,11 @@ const int servoPin = D5;
 
 Servo myServo;
 
-int currentBrightness = 100;  // default runtime
+int currentBrightness = 100;
 int currentServoAngle = 90;
 
 void handleRoot() {
-  String html = R"rawliteral(
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>NodeMCU Control</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          background: #f7f7f7;
-          text-align: center;
-          padding: 2em;
-        }
-        h1 { color: #4CAF50; }
-        button {
-          padding: 10px 20px;
-          margin: 10px;
-          border: none;
-          background: #4CAF50;
-          color: white;
-          border-radius: 6px;
-          cursor: pointer;
-        }
-        input[type="range"] {
-          width: 80%;
-          margin: 20px auto;
-        }
-        .slider-label {
-          font-size: 1.1rem;
-          margin-top: 1rem;
-        }
-      </style>
-    </head>
-    <body>
-      <h1>NodeMCU LED & Servo</h1>
-
-      <div class="slider-label">LED Brightness: <span id="brightnessVal">%BRIGHTNESS%</span>%</div>
-      <input type="range" id="brightness" min="0" max="100" value="%BRIGHTNESS%" oninput="setBrightness(this.value)">
-
-      <div class="slider-label">Servo Angle: <span id="servoVal">%SERVO%</span>°</div>
-      <input type="range" id="servo" min="0" max="180" value="%SERVO%" oninput="setServo(this.value)">
-
-      <p><a href="/update"><button>OTA Firmware Upload</button></a></p>
-      <p><a href="/reboot"><button style="background:#FF5722;">Reboot Device</button></a></p>
-
-      <script>
-        function setBrightness(val) {
-          document.getElementById("brightnessVal").innerText = val;
-          fetch(`/led/brightness?value=${val}`);
-        }
-        function setServo(val) {
-          document.getElementById("servoVal").innerText = val;
-          fetch(`/servo?angle=${val}`);
-        }
-      </script>
-    </body>
-    </html>
-  )rawliteral";
-
+  String html(PAGE_INDEX);
   html.replace("%BRIGHTNESS%", String(currentBrightness));
   html.replace("%SERVO%", String(currentServoAngle));
   server.send(200, "text/html", html);
@@ -106,112 +52,11 @@ void handleServo() {
 }
 
 void handleOTAUploadForm() {
-  String html = R"rawliteral(
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>OTA Firmware Upload</title>
-      <style>
-        body {
-          background: #f7f7f7;
-          font-family: Arial, sans-serif;
-          text-align: center;
-          padding: 2em;
-        }
-        h1 {
-          color: #4CAF50;
-        }
-        form {
-          background: white;
-          display: inline-block;
-          padding: 2em;
-          border-radius: 10px;
-          box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        input[type="file"] {
-          padding: 1em;
-          margin-bottom: 1em;
-          width: 100%;
-        }
-        input[type="submit"] {
-          background: #4CAF50;
-          border: none;
-          padding: 10px 20px;
-          color: white;
-          border-radius: 6px;
-          cursor: pointer;
-        }
-        a {
-          display: block;
-          margin-top: 20px;
-          color: #4CAF50;
-          text-decoration: none;
-        }
-      </style>
-    </head>
-    <body>
-      <h1>Upload Firmware (OTA)</h1>
-      <form method="POST" action="/update" enctype="multipart/form-data">
-        <input type="file" name="firmware" required>
-        <br>
-        <input type="submit" value="Upload">
-      </form>
-      <a href="/">← Back to Control Panel</a>
-    </body>
-    </html>
-  )rawliteral";
-
-  server.send(200, "text/html", html);
+  server.send(200, "text/html", PAGE_UPDATE);
 }
 
 void handleRebootPage() {
-  String html = R"rawliteral(
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Rebooting</title>
-      <style>
-        body {
-          background: #f7f7f7;
-          font-family: Arial, sans-serif;
-          text-align: center;
-          padding: 2em;
-        }
-        h1 { color: #FF5722; }
-        p { font-size: 1.2rem; color: #333; }
-        .loader {
-          margin: 40px auto;
-          border: 6px solid #f3f3f3;
-          border-top: 6px solid #FF5722;
-          border-radius: 50%;
-          width: 50px;
-          height: 50px;
-          animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      </style>
-      <script>
-        setTimeout(() => {
-          location.href = "/";
-        }, 8000);
-      </script>
-    </head>
-    <body>
-      <h1>Rebooting...</h1>
-      <div class="loader"></div>
-      <p>Device is restarting. You will be redirected automatically.</p>
-    </body>
-    </html>
-  )rawliteral";
-
-  server.send(200, "text/html", html);
+  server.send(200, "text/html", PAGE_REBOOT);
   delay(1000);
   ESP.restart();
 }
@@ -236,7 +81,7 @@ void setup() {
   Serial.print("Connected. IP: ");
   Serial.println(WiFi.localIP());
 
-  // Web routes
+  // Routes
   server.on("/", handleRoot);
   server.on("/led/brightness", handleBrightness);
   server.on("/servo", handleServo);
@@ -264,6 +109,7 @@ void setup() {
       }
     }
   });
+
   server.on("/reboot", handleRebootPage);
 
   server.begin();
