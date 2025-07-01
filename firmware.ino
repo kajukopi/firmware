@@ -2,7 +2,6 @@
 #include <ESP8266WebServer.h>
 #include <ArduinoOTA.h>
 #include <Servo.h>
-#include <EEPROM.h>
 #include <WiFiUdp.h>
 #include <Updater.h>
 
@@ -16,11 +15,7 @@ const int servoPin = D5;
 
 Servo myServo;
 
-#define EEPROM_SIZE 4
-#define ADDR_BRIGHTNESS 0
-#define ADDR_SERVO 1
-
-int currentBrightness = 100;
+int currentBrightness = 100;  // default runtime
 int currentServoAngle = 90;
 
 void handleRoot() {
@@ -94,8 +89,6 @@ void handleBrightness() {
     currentBrightness = constrain(server.arg("value").toInt(), 0, 100);
     int pwm = map(100 - currentBrightness, 0, 100, 0, 1023);
     analogWrite(ledPin, pwm);
-    EEPROM.write(ADDR_BRIGHTNESS, currentBrightness);
-    EEPROM.commit();
     server.send(200, "text/plain", "OK");
   } else {
     server.send(400, "text/plain", "Missing value");
@@ -106,8 +99,6 @@ void handleServo() {
   if (server.hasArg("angle")) {
     currentServoAngle = constrain(server.arg("angle").toInt(), 0, 180);
     myServo.write(currentServoAngle);
-    EEPROM.write(ADDR_SERVO, currentServoAngle);
-    EEPROM.commit();
     server.send(200, "text/plain", "Servo set");
   } else {
     server.send(400, "text/plain", "Missing angle");
@@ -231,10 +222,6 @@ void setup() {
 
   pinMode(ledPin, OUTPUT);
   analogWriteRange(1023);
-  EEPROM.begin(EEPROM_SIZE);
-
-  currentBrightness = constrain(EEPROM.read(ADDR_BRIGHTNESS), 0, 100);
-  currentServoAngle = constrain(EEPROM.read(ADDR_SERVO), 0, 180);
 
   analogWrite(ledPin, map(100 - currentBrightness, 0, 100, 0, 1023));
   myServo.attach(servoPin, 600, 2400);
@@ -249,7 +236,7 @@ void setup() {
   Serial.print("Connected. IP: ");
   Serial.println(WiFi.localIP());
 
-  // Routes
+  // Web routes
   server.on("/", handleRoot);
   server.on("/led/brightness", handleBrightness);
   server.on("/servo", handleServo);
@@ -277,7 +264,6 @@ void setup() {
       }
     }
   });
-
   server.on("/reboot", handleRebootPage);
 
   server.begin();
