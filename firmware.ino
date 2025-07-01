@@ -5,7 +5,7 @@
 #include <WiFiUdp.h>
 #include <Updater.h>
 
-// Include HTML headers
+// Include HTML pages
 #include "pages/page_index.h"
 #include "pages/page_update.h"
 #include "pages/page_reboot.h"
@@ -15,13 +15,16 @@ const char* password = "09871234";
 
 ESP8266WebServer server(80);
 
+// PIN setup
 const int ledPin = 2;
 const int servoPin = D5;
+const int irPin = D6;  // IR Sensor OUT to D6 (GPIO12)
 
 Servo myServo;
 
 int currentBrightness = 100;
 int currentServoAngle = 90;
+bool objectDetected = false;
 
 void handleRoot() {
   String html(PAGE_INDEX);
@@ -51,6 +54,13 @@ void handleServo() {
   }
 }
 
+void handleIRSensor() {
+  int state = digitalRead(irPin);
+  objectDetected = (state == LOW);  // LOW = object detected
+  String json = String("{\"objectDetected\":") + (objectDetected ? "true" : "false") + "}";
+  server.send(200, "application/json", json);
+}
+
 void handleOTAUploadForm() {
   server.send(200, "text/html", PAGE_UPDATE);
 }
@@ -66,6 +76,7 @@ void setup() {
   WiFi.begin(ssid, password);
 
   pinMode(ledPin, OUTPUT);
+  pinMode(irPin, INPUT);
   analogWriteRange(1023);
 
   analogWrite(ledPin, map(100 - currentBrightness, 0, 100, 0, 1023));
@@ -81,10 +92,11 @@ void setup() {
   Serial.print("Connected. IP: ");
   Serial.println(WiFi.localIP());
 
-  // Routes
   server.on("/", handleRoot);
   server.on("/led/brightness", handleBrightness);
   server.on("/servo", handleServo);
+  server.on("/sensor/ir", handleIRSensor);
+
   server.on("/update", HTTP_GET, handleOTAUploadForm);
   server.on("/update", HTTP_POST, []() {
     server.sendHeader("Connection", "close");
