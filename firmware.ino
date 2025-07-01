@@ -1,18 +1,18 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ArduinoOTA.h>
-#include <ESP8266HTTPUpdateServer.h>
 #include <Servo.h>
-#include <EEPROM.h> // ✅ EEPROM for saving settings
+#include <EEPROM.h>
+#include <WiFiUdp.h>
+#include <Updater.h>
 
 const char* ssid = "karimroy";
 const char* password = "09871234";
 
 ESP8266WebServer server(80);
-ESP8266HTTPUpdateServer httpUpdater;
 
-const int ledPin = 2;      // Onboard LED (active LOW)
-const int servoPin = D5;   // GPIO14
+const int ledPin = 2;
+const int servoPin = D5;
 
 Servo myServo;
 
@@ -20,8 +20,8 @@ Servo myServo;
 #define ADDR_BRIGHTNESS 0
 #define ADDR_SERVO 1
 
-int currentBrightness = 100;      // default brightness
-int currentServoAngle = 90;       // default angle
+int currentBrightness = 100;
+int currentServoAngle = 90;
 
 void handleRoot() {
   String html = R"rawliteral(
@@ -46,6 +46,7 @@ void handleRoot() {
           background: #4CAF50;
           color: white;
           border-radius: 6px;
+          cursor: pointer;
         }
         input[type="range"] {
           width: 80%;
@@ -67,17 +68,16 @@ void handleRoot() {
       <input type="range" id="servo" min="0" max="180" value="%SERVO%" oninput="setServo(this.value)">
 
       <p><a href="/update"><button>OTA Firmware Upload</button></a></p>
+      <p><a href="/reboot"><button style="background:#FF5722;">Reboot Device</button></a></p>
 
       <script>
         function setBrightness(val) {
           document.getElementById("brightnessVal").innerText = val;
-          fetch(`/led/brightness?value=${val}`)
-            .then(res => console.log("LED brightness set:", val));
+          fetch(`/led/brightness?value=${val}`);
         }
         function setServo(val) {
           document.getElementById("servoVal").innerText = val;
-          fetch(`/servo?angle=${val}`)
-            .then(res => console.log("Servo angle set:", val));
+          fetch(`/servo?angle=${val}`);
         }
       </script>
     </body>
@@ -91,15 +91,11 @@ void handleRoot() {
 
 void handleBrightness() {
   if (server.hasArg("value")) {
-    currentBrightness = server.arg("value").toInt();
-    currentBrightness = constrain(currentBrightness, 0, 100);
-    int pwm = map(100 - currentBrightness, 0, 100, 0, 1023); // active LOW
+    currentBrightness = constrain(server.arg("value").toInt(), 0, 100);
+    int pwm = map(100 - currentBrightness, 0, 100, 0, 1023);
     analogWrite(ledPin, pwm);
-
-    // Save to EEPROM
     EEPROM.write(ADDR_BRIGHTNESS, currentBrightness);
     EEPROM.commit();
-
     server.send(200, "text/plain", "OK");
   } else {
     server.send(400, "text/plain", "Missing value");
@@ -108,19 +104,125 @@ void handleBrightness() {
 
 void handleServo() {
   if (server.hasArg("angle")) {
-    int angle = server.arg("angle").toInt();
-    angle = constrain(angle, 0, 180);
-    myServo.write(angle);
-    currentServoAngle = angle;
-
-    // Save to EEPROM
+    currentServoAngle = constrain(server.arg("angle").toInt(), 0, 180);
+    myServo.write(currentServoAngle);
     EEPROM.write(ADDR_SERVO, currentServoAngle);
     EEPROM.commit();
-
     server.send(200, "text/plain", "Servo set");
   } else {
     server.send(400, "text/plain", "Missing angle");
   }
+}
+
+void handleOTAUploadForm() {
+  String html = R"rawliteral(
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>OTA Firmware Upload</title>
+      <style>
+        body {
+          background: #f7f7f7;
+          font-family: Arial, sans-serif;
+          text-align: center;
+          padding: 2em;
+        }
+        h1 {
+          color: #4CAF50;
+        }
+        form {
+          background: white;
+          display: inline-block;
+          padding: 2em;
+          border-radius: 10px;
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        input[type="file"] {
+          padding: 1em;
+          margin-bottom: 1em;
+          width: 100%;
+        }
+        input[type="submit"] {
+          background: #4CAF50;
+          border: none;
+          padding: 10px 20px;
+          color: white;
+          border-radius: 6px;
+          cursor: pointer;
+        }
+        a {
+          display: block;
+          margin-top: 20px;
+          color: #4CAF50;
+          text-decoration: none;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Upload Firmware (OTA)</h1>
+      <form method="POST" action="/update" enctype="multipart/form-data">
+        <input type="file" name="firmware" required>
+        <br>
+        <input type="submit" value="Upload">
+      </form>
+      <a href="/">← Back to Control Panel</a>
+    </body>
+    </html>
+  )rawliteral";
+
+  server.send(200, "text/html", html);
+}
+
+void handleRebootPage() {
+  String html = R"rawliteral(
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Rebooting</title>
+      <style>
+        body {
+          background: #f7f7f7;
+          font-family: Arial, sans-serif;
+          text-align: center;
+          padding: 2em;
+        }
+        h1 { color: #FF5722; }
+        p { font-size: 1.2rem; color: #333; }
+        .loader {
+          margin: 40px auto;
+          border: 6px solid #f3f3f3;
+          border-top: 6px solid #FF5722;
+          border-radius: 50%;
+          width: 50px;
+          height: 50px;
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+      <script>
+        setTimeout(() => {
+          location.href = "/";
+        }, 8000);
+      </script>
+    </head>
+    <body>
+      <h1>Rebooting...</h1>
+      <div class="loader"></div>
+      <p>Device is restarting. You will be redirected automatically.</p>
+    </body>
+    </html>
+  )rawliteral";
+
+  server.send(200, "text/html", html);
+  delay(1000);
+  ESP.restart();
 }
 
 void setup() {
@@ -129,14 +231,10 @@ void setup() {
 
   pinMode(ledPin, OUTPUT);
   analogWriteRange(1023);
+  EEPROM.begin(EEPROM_SIZE);
 
-  EEPROM.begin(EEPROM_SIZE); // Init EEPROM
-
-  // Load from EEPROM
-  currentBrightness = EEPROM.read(ADDR_BRIGHTNESS);
-  currentBrightness = constrain(currentBrightness, 0, 100);
-  currentServoAngle = EEPROM.read(ADDR_SERVO);
-  currentServoAngle = constrain(currentServoAngle, 0, 180);
+  currentBrightness = constrain(EEPROM.read(ADDR_BRIGHTNESS), 0, 100);
+  currentServoAngle = constrain(EEPROM.read(ADDR_SERVO), 0, 180);
 
   analogWrite(ledPin, map(100 - currentBrightness, 0, 100, 0, 1023));
   myServo.attach(servoPin, 600, 2400);
@@ -148,25 +246,44 @@ void setup() {
   }
 
   Serial.println();
-  Serial.print("Connected to WiFi. IP: ");
+  Serial.print("Connected. IP: ");
   Serial.println(WiFi.localIP());
 
+  // Routes
   server.on("/", handleRoot);
   server.on("/led/brightness", handleBrightness);
   server.on("/servo", handleServo);
-  httpUpdater.setup(&server);
+  server.on("/update", HTTP_GET, handleOTAUploadForm);
+  server.on("/update", HTTP_POST, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    ESP.restart();
+  }, []() {
+    HTTPUpload& upload = server.upload();
+    if (upload.status == UPLOAD_FILE_START) {
+      WiFiUDP::stopAll();
+      if (!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)) {
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_END) {
+      if (Update.end(true)) {
+        Serial.printf("Update Success: %u bytes\n", upload.totalSize);
+      } else {
+        Update.printError(Serial);
+      }
+    }
+  });
+
+  server.on("/reboot", handleRebootPage);
 
   server.begin();
-  Serial.println("HTTP server started");
-
   ArduinoOTA.setHostname("NodeMCU-OTA");
   ArduinoOTA.begin();
-  Serial.println("OTA Ready");
-
-  Serial.print("Initial Brightness: ");
-  Serial.println(currentBrightness);
-  Serial.print("Initial Servo Angle: ");
-  Serial.println(currentServoAngle);
+  Serial.println("Server and OTA ready.");
 }
 
 void loop() {
