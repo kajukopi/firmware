@@ -25,6 +25,17 @@ const char PAGE_INDEX[] PROGMEM = R"rawliteral(
   <div class="slider-label">Servo Angle: <span id="servoVal">%SERVO%</span>°</div>
   <input type="range" id="servo" min="0" max="180" value="%SERVO%" oninput="setServo(this.value)">
 
+<div class="slider-label">IR Sensor: <span id="irState">Checking...</span></div>
+<script>
+  setInterval(() => {
+    fetch('/sensor/ir')
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("irState").innerText = data.objectDetected ? "OBSTACLE" : "CLEAR";
+      });
+  }, 1000);
+</script>
+
   <p><a href="/update"><button>OTA Firmware Upload</button></a></p>
   <p><a href="/reboot"><button style="background:#FF5722;">Reboot Device</button></a></p>
 
