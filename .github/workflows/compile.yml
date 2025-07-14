@@ -34,6 +34,14 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install esp8266:esp8266
 
+      - name: 📚 Install Required Libraries
+        run: |
+          arduino-cli lib install "LiquidCrystal_I2C"
+          arduino-cli lib install "ArduinoOTA"
+          arduino-cli lib install "UniversalTelegramBot"
+          arduino-cli lib install "ESP8266WebServer"
+          arduino-cli lib install "ESP8266HTTPUpdateServer"
+
       - name: 🧪 Compile sketch
         run: |
           arduino-cli compile \
