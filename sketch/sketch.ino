@@ -1,125 +1,110 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
-#include <ESP8266httpUpdate.h>
-#include <Servo.h>
-#include <Wire.h>
-#include <LiquidCrystal_I2C.h>
-#include <WiFiClientSecure.h>
-#include <UniversalTelegramBot.h>
+#include <WiFiUdp.h>
 #include <ArduinoOTA.h>
-#include <ESP8266HTTPUpdateServer.h>
+#include <LiquidCrystal_I2C.h>
+#include <Servo.h>
+#include <UniversalTelegramBot.h>
 #include "tokens.h"
 #include "webpage.h"
 
-// Inisialisasi
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Cek alamat I2C kalau perlu
+Servo myservo;
 ESP8266WebServer server(80);
-ESP8266HTTPUpdateServer httpUpdater;
-WiFiClientSecure secureClient;
-UniversalTelegramBot bot(BOT_TOKEN, secureClient);
-LiquidCrystal_I2C lcd(0x27, 16, 2); // Alamat I2C LCD
-Servo servo;
+WiFiClientSecure secured_client;
+UniversalTelegramBot bot(BOT_TOKEN, secured_client);
 
-// Pin
-const int relayPin = D5;
-const int servoPin = D6;
+#define SERVO_PIN D5
+#define RELAY_PIN D6
+#define LED_PIN LED_BUILTIN
 
-// Fungsi Kirim ke Telegram
-void notifyTelegram(const String& msg) {
-  bot.sendMessage(CHAT_ID, msg, "");
-}
-
-// Fungsi OTA Update dari GitHub Release
-void otaUpdateFromGitHub() {
-  WiFiClient client;
-  String url = "http://yourdomain.com/latest-release.bin"; // Ganti dengan file OTA langsung (gunakan domain HTTP)
-  t_httpUpdate_return ret = ESPhttpUpdate.update(client, url);
-
-  switch (ret) {
-    case HTTP_UPDATE_FAILED:
-      Serial.printf("OTA Update Failed: %s\n", ESPhttpUpdate.getLastErrorString().c_str());
-      break;
-    case HTTP_UPDATE_NO_UPDATES:
-      Serial.println("No OTA Update available.");
-      break;
-    case HTTP_UPDATE_OK:
-      Serial.println("OTA Update Success! Rebooting...");
-      break;
-  }
-}
+String scrollText = "";
+int scrollIdx = 0;
+unsigned long lastLcdUpdate = 0;
+unsigned long lastBotTime = 0;
 
 void setup() {
   Serial.begin(115200);
   lcd.init(); lcd.backlight();
-  lcd.setCursor(0, 0); lcd.print("ESP8266 Starting");
+  pinMode(RELAY_PIN, OUTPUT); digitalWrite(RELAY_PIN, LOW);
+  pinMode(LED_PIN, OUTPUT); digitalWrite(LED_PIN, HIGH); // LED_BUILTIN aktif LOW
+  myservo.attach(SERVO_PIN);
+  lcd.setCursor(0,0); lcd.print("WiFi Connecting");
 
+  WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  lcd.setCursor(0, 1); lcd.print("Connecting WiFi");
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    delay(500); lcd.print(".");
   }
+  IPAddress ip = WiFi.localIP();
+  String info = "IP:" + ip.toString() + " SSID:" + String(WIFI_SSID);
+  scrollText = info + " "; // animasi infinite
 
-  // Tampilkan IP di LCD
-  lcd.clear();
-  lcd.setCursor(0, 0); lcd.print("IP:");
-  lcd.setCursor(0, 1); lcd.print(WiFi.localIP());
+  lcd.clear(); lcd.print("IP:"); lcd.print(ip);
 
-  // Telegram
-  secureClient.setInsecure(); // Hapus validasi SSL
-
-  // Setup pin
-  pinMode(relayPin, OUTPUT);
-  servo.attach(servoPin);
-
-  // Web endpoint
-  server.on("/", []() { server.send_P(200, "text/html", MAIN_page); });
-
-  server.on("/relay/on", []() {
-    digitalWrite(relayPin, HIGH);
-    lcd.setCursor(0, 0); lcd.print("Relay: ON         ");
-    notifyTelegram("🔌 Relay turned ON");
-    server.send(200, "text/plain", "Relay ON");
-  });
-
-  server.on("/relay/off", []() {
-    digitalWrite(relayPin, LOW);
-    lcd.setCursor(0, 0); lcd.print("Relay: OFF        ");
-    notifyTelegram("⚡ Relay turned OFF");
-    server.send(200, "text/plain", "Relay OFF");
-  });
-
-  server.on("/servo/open", []() {
-    servo.write(90);
-    lcd.setCursor(0, 1); lcd.print("Servo: OPEN       ");
-    notifyTelegram("🚪 Servo OPENED");
-    server.send(200, "text/plain", "Servo OPEN");
-  });
-
-  server.on("/servo/close", []() {
-    servo.write(0);
-    lcd.setCursor(0, 1); lcd.print("Servo: CLOSED     ");
-    notifyTelegram("🔒 Servo CLOSED");
-    server.send(200, "text/plain", "Servo CLOSED");
-  });
-
-  server.on("/ota", []() {
-    server.send(200, "text/plain", "Starting OTA update...");
-    otaUpdateFromGitHub();
-  });
-
-  // Manual OTA Upload via /update
-  httpUpdater.setup(&server, "/update");
-
-  server.begin();
+  // OTA
+  ArduinoOTA.onStart([]() { lcd.clear(); lcd.print("OTA Update"); });
   ArduinoOTA.begin();
 
-  Serial.println("HTTP server started.");
-  Serial.println("IP address: " + WiFi.localIP().toString());
-}
-  
-void loop() {
-  server.handleClient();
-  ArduinoOTA.handle();
+  // Telegram SSL
+  secured_client.setInsecure();
+
+  // Webserver
+  server.on("/", []() {
+    server.send_P(200, "text/html", MAIN_page);
+  });
+  server.on("/lcd", []() {
+    server.send(200, "text/plain", scrollText);
+  });
+  server.on("/servo", []() {
+    if(server.hasArg("pos")) myservo.write(server.arg("pos").toInt());
+    server.send(200, "text/plain", "OK");
+  });
+  server.on("/relay", []() {
+    if(server.hasArg("state")) digitalWrite(RELAY_PIN, server.arg("state").toInt()?HIGH:LOW);
+    server.send(200, "text/plain", "OK");
+  });
+  server.on("/led", []() {
+    if(server.hasArg("state")) digitalWrite(LED_PIN, server.arg("state").toInt()?LOW:HIGH);
+    server.send(200, "text/plain", "OK");
+  });
+  server.on("/update", HTTP_POST, [](){
+    server.send(200,"text/plain","OK"); ESP.restart();
+  },[](){
+    HTTPUpload& upload = server.upload();
+    if(upload.status==UPLOAD_FILE_START) {ArduinoOTA.begin();}
+    if(upload.status==UPLOAD_FILE_WRITE) {Update.write(upload.buf, upload.currentSize);}
+    if(upload.status==UPLOAD_FILE_END) {Update.end(true);}
+  });
+  server.begin();
+
+  // Kirim notifikasi Telegram saat boot
+  bot.sendMessage(CHAT_ID, "ESP8266 started! IP: " + ip.toString(), "");
 }
 
-// Edit 2
+void loop() {
+  ArduinoOTA.handle();
+  server.handleClient();
+
+  // LCD animasi moving text
+  if(millis() - lastLcdUpdate > 400){
+    lcd.clear();
+    String line1 = scrollText.substring(scrollIdx, scrollIdx+16);
+    lcd.setCursor(0,0); lcd.print(line1);
+    scrollIdx++;
+    if(scrollIdx > scrollText.length()-16) scrollIdx = 0;
+    lastLcdUpdate = millis();
+  }
+
+  // Telegram polling
+  if(millis() - lastBotTime > 5000){
+    int n = bot.getUpdates(bot.last_message_received + 1);
+    for(int i=0;i<n;i++){
+      String text = bot.messages[i].text;
+      if(text == "/status") {
+        bot.sendMessage(CHAT_ID, "IP: "+WiFi.localIP().toString(), "");
+      }
+    }
+    lastBotTime = millis();
+  }
+}
