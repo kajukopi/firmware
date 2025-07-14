@@ -33,11 +33,18 @@ jobs:
           arduino-cli lib install "UniversalTelegramBot"
 
       - name: Compile Firmware
-        run: arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 ./sketch --output-dir ./build
+        run: |
+          arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 ./sketch --output-dir ./build
+
+      - name: Rename binary with datetime GMT+7
+        run: |
+          TZ=Asia/Bangkok
+          export DATESTR=$(date +"%Y%m%d-%H%M%S")
+          mv ./build/sketch.ino.bin ./build/firmware-${DATESTR}-GMT7.bin
 
       - name: Release binary
         uses: softprops/action-gh-release@v2
         with:
-          files: ./build/sketch.ino.bin
+          files: ./build/firmware-*-GMT7.bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
