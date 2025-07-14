@@ -4,10 +4,7 @@ on:
   push:
     paths:
       - 'sketch/**'
-  workflow_dispatch:  # Bisa dijalankan manual dari GitHub UI
-
-permissions:
-  contents: write
+  workflow_dispatch: # Bisa dijalankan manual dari GitHub UI
 
 jobs:
   build:
@@ -21,39 +18,39 @@ jobs:
       - name: 🛠️ Install Arduino CLI
         uses: arduino/setup-arduino-cli@v1
         with:
-          version: latest
+          version: 0.35.2  # Gunakan versi stabil, hindari 'latest'
 
-      - name: 📦 Install ESP8266 Board Package
+      - name: 📦 Install ESP8266 Core
         run: |
           arduino-cli core update-index
           arduino-cli core install esp8266:esp8266
 
-      - name: 🧪 Compile sketch.ino
+      - name: 🧪 Compile sketch
         run: |
           arduino-cli compile \
             --fqbn esp8266:esp8266:nodemcuv2 \
             --output-dir ./build \
             ./sketch
 
-      - name: 📝 Rename binary output
+      - name: 📝 Rename Binary Output
         run: |
           mv ./build/sketch.ino.bin ./build/latest-release.bin
 
-      - name: 🚀 Create GitHub Release & Upload .bin
+      - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: 🌟 Firmware Latest Release
+          name: 🌟 Latest Firmware Release
           body: |
-            🔄 Update otomatis hasil kompilasi dari folder `sketch/`
-            📅 Waktu: ${{ github.event.head_commit.timestamp }}
+            🔄 Firmware hasil kompilasi otomatis dari folder `sketch/`
+            📅 Dibuat pada: ${{ github.event.head_commit.timestamp }}
             ✏️ Commit: ${{ github.event.head_commit.message }}
           files: |
             ./build/latest-release.bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 📦 Upload Artifact (Backup Binary)
+      - name: 📦 Upload Firmware as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: latest-release
