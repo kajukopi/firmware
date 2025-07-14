@@ -1,4 +1,4 @@
-name: Compile and Release Firmware
+name: Compile ESP8266 Sketch
 
 on:
   push:
@@ -11,39 +11,70 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: 📦 Checkout source code
+      uses: actions/checkout@v4
 
-      - name: Install Arduino CLI
-        uses: arduino/setup-arduino-cli@v1
+    - name: ⚙️ Set up Arduino CLI
+      uses: arduino/setup-arduino-cli@v1
 
-      - name: Set up ESP8266 Board Manager URL
-        run: |
-          arduino-cli config init
-          arduino-cli config add board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
+    - name: 🧱 Initialize Arduino CLI config
+      run: arduino-cli config init
 
-      - name: Install Platform & Libs
-        run: |
-          arduino-cli core update-index
-          arduino-cli core install esp8266:esp8266
-          arduino-cli lib install "LiquidCrystal I2C"
-          arduino-cli lib install "Servo"
-          arduino-cli lib install "UniversalTelegramBot"
+    - name: ➕ Add ESP8266 Board Manager URL
+      run: arduino-cli config add board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
 
-      - name: Compile Firmware
-        run: |
-          arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 ./sketch --output-dir ./build
+    - name: 📥 Install ESP8266 core
+      run: |
+        arduino-cli core update-index
+        arduino-cli core install esp8266:esp8266
 
-      - name: Rename binary with datetime GMT+7
-        run: |
-          TZ=Asia/Bangkok
-          export DATESTR=$(date +"%Y%m%d-%H%M%S")
-          mv ./build/sketch.ino.bin ./build/firmware-${DATESTR}-GMT7.bin
+    - name: 🧱 Configure Arduino library path
+      run: |
+        echo "directories:\n  user: $HOME/Arduino" > ~/.arduino15/arduino-cli.yaml
 
-      - name: Release binary
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ./build/firmware-*-GMT7.bin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: 📚 Install required libraries
+      run: |
+        arduino-cli lib install "UniversalTelegramBot"
+        arduino-cli lib install "ArduinoJson"
+        arduino-cli lib install "WebSockets"
+        arduino-cli lib install "Servo"
+
+        # Install LiquidCrystal_I2C manually
+        mkdir -p ~/Arduino/libraries
+        cd ~/Arduino/libraries
+        curl -L https://github.com/johnrickman/LiquidCrystal_I2C/archive/refs/heads/master.zip -o LiquidCrystal_I2C.zip
+        unzip LiquidCrystal_I2C.zip
+        mv LiquidCrystal_I2C-master LiquidCrystal_I2C
+
+    - name: 🛠️ Compile sketch
+      run: |
+        arduino-cli compile \
+          --fqbn esp8266:esp8266:nodemcuv2 \
+          sketch \
+          --output-dir build \
+          --verbose
+
+    - name: 📅 Get date
+      id: date
+      run: echo "today=$(date +%F-%H%M)" >> "$GITHUB_OUTPUT"
+
+    - name: 📂 Rename firmware with date
+      run: |
+        ls build
+        for f in build/*.bin; do
+          mv "$f" "build/firmware-${{ steps.date.outputs.today }}.bin"
+        done
+
+    - name: 🚀 Upload firmware artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: firmware-${{ steps.date.outputs.today }}
+        path: build/firmware-*.bin
+
+    - name: 🏷️ Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: firmware-${{ steps.date.outputs.today }}
+        files: build/firmware-*.bin
