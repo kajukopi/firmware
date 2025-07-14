@@ -1,6 +1,6 @@
-# 📦 ESP8266 Smart IoT Project: LCD, Relay, Servo, Web Control & Telegram Notification
+# 📦 ESP8266 Smart IoT Project: LCD, Relay, Servo, Web Control, Telegram Notification & OTA Update
 
-Proyek ini menggabungkan berbagai komponen ESP8266 yang mudah didapat dan cocok untuk pemula. Perangkat ini dikendalikan melalui antarmuka web dan terhubung ke Telegram untuk mengirimkan notifikasi. Selain itu, proyek ini juga mendukung Over The Air (OTA) update dan proses kompilasi otomatis melalui GitHub Actions.
+Proyek ini menggabungkan berbagai komponen ESP8266 yang mudah didapat dan cocok untuk pemula. Perangkat ini dikendalikan melalui antarmuka web dan terhubung ke Telegram untuk mengirimkan notifikasi. Selain itu, proyek ini juga mendukung Over The Air (OTA) update otomatis dari GitHub dan halaman manual upload firmware melalui web UI.
 
 ---
 
@@ -16,12 +16,12 @@ Proyek ini menggabungkan berbagai komponen ESP8266 yang mudah didapat dan cocok 
 ## 📡 Konfigurasi
 
 **WiFi**
-- SSID: `NAMA_WIFI_KAMU`
-- Password: `PASSWORD_WIFI_KAMU`
+- SSID: `karimroy`
+- Password: `09871234`
 
 **Telegram Bot**
-- Token: `TOKEN_TELEGRAM_BOT_KAMU`
-- Chat ID: `CHAT_ID_TELEGRAM_BOT_KAMU`
+- Token: `7826449058:AAHZgPVpCdmwHsmCO6D9wIsnpZj3fOyjXWM`
+- Chat ID: `7891041281`
 
 ---
 
@@ -47,11 +47,11 @@ project-root/
 #ifndef TOKENS_H
 #define TOKENS_H
 
-#define WIFI_SSID     "ssid"
-#define WIFI_PASSWORD "password"
+#define WIFI_SSID     "karimroy"
+#define WIFI_PASSWORD "09871234"
 
-#define BOT_TOKEN     "0123456789:abcdEfGhIjklmnOpQrsTUvwxYZ"
-#define CHAT_ID       "1234567890"
+#define BOT_TOKEN     "7826449058:AAHZgPVpCdmwHsmCO6D9wIsnpZj3fOyjXWM"
+#define CHAT_ID       "7891041281"
 
 #endif
 ```
@@ -74,7 +74,13 @@ const char MAIN_page[] PROGMEM = R"rawliteral(
 <button onclick="fetch('/relay/on')">Relay ON</button>
 <button onclick="fetch('/relay/off')">Relay OFF</button><br><br>
 <button onclick="fetch('/servo/open')">Servo OPEN</button>
-<button onclick="fetch('/servo/close')">Servo CLOSE</button>
+<button onclick="fetch('/servo/close')">Servo CLOSE</button><br><br>
+<form method="POST" action="/update" enctype="multipart/form-data">
+  <input type="file" name="update">
+  <input type="submit" value="Upload Firmware">
+</form>
+<br>
+<button onclick="fetch('/ota')">OTA Update from GitHub</button>
 </body></html>
 )rawliteral";
 
@@ -88,16 +94,19 @@ const char MAIN_page[] PROGMEM = R"rawliteral(
 ```cpp
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+#include <ESP8266httpUpdate.h>
 #include <Servo.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <WiFiClientSecure.h>
 #include <UniversalTelegramBot.h>
 #include <ArduinoOTA.h>
+#include <ESP8266HTTPUpdateServer.h>
 #include "tokens.h"
 #include "webpage.h"
 
 ESP8266WebServer server(80);
+ESP8266HTTPUpdateServer httpUpdater;
 WiFiClientSecure client;
 UniversalTelegramBot bot(BOT_TOKEN, client);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -108,6 +117,26 @@ const int servoPin = D6;
 
 void notifyTelegram(const String& msg) {
   bot.sendMessage(CHAT_ID, msg, "");
+}
+
+void otaUpdateFromGitHub() {
+  WiFiClient client;
+  t_httpUpdate_return ret = ESPhttpUpdate.update(
+    client,
+    "https://github.com/[USERNAME]/[REPO]/releases/latest/download/latest-release.bin"
+  );
+
+  switch (ret) {
+    case HTTP_UPDATE_FAILED:
+      Serial.println("Update failed.");
+      break;
+    case HTTP_UPDATE_NO_UPDATES:
+      Serial.println("No updates.");
+      break;
+    case HTTP_UPDATE_OK:
+      Serial.println("Update successful.");
+      break;
+  }
 }
 
 void setup() {
@@ -159,6 +188,12 @@ void setup() {
     server.send(200, "text/plain", "Servo CLOSED");
   });
 
+  server.on("/ota", []() {
+    server.send(200, "text/plain", "Starting OTA update...");
+    otaUpdateFromGitHub();
+  });
+
+  httpUpdater.setup(&server, "/update");
   server.begin();
   ArduinoOTA.begin();
 }
@@ -235,22 +270,22 @@ jobs:
 
 ---
 
-## 📥 OTA Update (Opsional)
+## 📥 OTA Update Otomatis & Manual
 
-```cpp
-#include <ESP8266HTTPClient.h>
-#include <ESP8266httpUpdate.h>
+- 🔄 **Otomatis dari GitHub Release**:
+  - Tekan tombol **"OTA Update from GitHub"** di web UI.
+  - File akan diambil dari:  
+    `https://github.com/[USERNAME]/[REPO]/releases/latest/download/latest-release.bin`
 
-void checkForOTAUpdate() {
-  ESPhttpUpdate.update("https://github.com/[USERNAME]/[REPO]/releases/latest/download/latest-release.bin");
-}
-```
+- 💾 **Upload Manual**:
+  - Buka `http://device_ip/update`
+  - Pilih file `.bin` lalu klik Upload
 
 ---
 
 ## ✅ Badge Status Build
 
-![Compile Firmware](https://github.com/[USERNAME]/[REPO]/actions/workflows/compile.yml/badge.svg)
+![Compile Firmware](https://github.com/kajukopi/firmware/actions/workflows/compile.yml/badge.svg)
 
 ---
 
@@ -258,7 +293,7 @@ void checkForOTAUpdate() {
 
 - LCD Address I2C menggunakan `0x27`, pastikan sesuai dengan modulmu.
 - OTA hanya berfungsi jika perangkat terhubung ke jaringan WiFi yang sama.
-- Proyek ini cocok untuk belajar integrasi sensor dan kontrol perangkat rumah sederhana.
-- Semua hasil kompilasi otomatis akan muncul di tab **Releases** dan **Artifacts** GitHub.
+- Ganti `[USERNAME]` dan `[REPO]` dengan akun dan nama repositori kamu di GitHub.
+- File `latest-release.bin` akan selalu otomatis diperbarui oleh GitHub Actions setelah push ke folder `sketch/`.
 
 ---
