@@ -250,9 +250,7 @@ void checkForOTAUpdate() {
 
 ## ✅ Badge Status Build
 
-```markdown
 ![Compile Firmware](https://github.com/[USERNAME]/[REPO]/actions/workflows/compile.yml/badge.svg)
-```
 
 ---
 
