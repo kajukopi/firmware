@@ -19,6 +19,11 @@ jobs:
       - name: Install Arduino CLI
         uses: arduino/setup-arduino-cli@v1
 
+      - name: Set up ESP8266 Board Manager URL
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
+
       - name: Install Platform & Libs
         run: |
           arduino-cli core update-index
@@ -29,7 +34,6 @@ jobs:
           arduino-cli lib install "ESP8266WebServer"
           arduino-cli lib install "ESP8266WiFi"
           arduino-cli lib install "ArduinoOTA"
-          # Add more install from .json or tar.gz if needed
 
       - name: Compile Firmware
         run: arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 ./sketch --output-dir ./build
