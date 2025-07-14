@@ -47,11 +47,11 @@ project-root/
 #ifndef TOKENS_H
 #define TOKENS_H
 
-#define WIFI_SSID     "karimroy"
-#define WIFI_PASSWORD "09871234"
+#define WIFI_SSID     "ssid"
+#define WIFI_PASSWORD "password"
 
-#define BOT_TOKEN     "7826449058:AAHZgPVpCdmwHsmCO6D9wIsnpZj3fOyjXWM"
-#define CHAT_ID       "7891041281"
+#define BOT_TOKEN     "0123456789:abcdEfGhIjklmnOpQrsTUvwxYZ"
+#define CHAT_ID       "1234567890"
 
 #endif
 ```
