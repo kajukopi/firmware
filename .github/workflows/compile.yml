@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write  # Wajib untuk membuat Release
 
 jobs:
   build:
@@ -39,8 +39,6 @@ jobs:
           arduino-cli lib install "LiquidCrystal_I2C"
           arduino-cli lib install "ArduinoOTA"
           arduino-cli lib install "UniversalTelegramBot"
-          arduino-cli lib install "ESP8266WebServer"
-          arduino-cli lib install "ESP8266HTTPUpdateServer"
 
       - name: 🧪 Compile sketch
         run: |
