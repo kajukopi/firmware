@@ -11,7 +11,13 @@ const char MAIN_page[] PROGMEM = R"rawliteral(
 <button onclick="fetch('/relay/on')">Relay ON</button>
 <button onclick="fetch('/relay/off')">Relay OFF</button><br><br>
 <button onclick="fetch('/servo/open')">Servo OPEN</button>
-<button onclick="fetch('/servo/close')">Servo CLOSE</button>
+<button onclick="fetch('/servo/close')">Servo CLOSE</button><br><br>
+<form method="POST" action="/update" enctype="multipart/form-data">
+  <input type="file" name="update">
+  <input type="submit" value="Upload Firmware">
+</form>
+<br>
+<button onclick="fetch('/ota')">OTA Update from GitHub</button>
 </body></html>
 )rawliteral";
 
