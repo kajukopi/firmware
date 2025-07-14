@@ -58,7 +58,9 @@ jobs:
 
     - name: 📅 Get date
       id: date
-      run: echo "today=$(date +%F-%H%M)" >> "$GITHUB_OUTPUT"
+      run: |
+        TZ=Asia/Bangkok
+        echo "today=$(date +%F-%H%M)" >> "$GITHUB_OUTPUT"
 
     - name: 📂 Rename firmware with date
       run: |
@@ -78,3 +80,4 @@ jobs:
       with:
         tag_name: firmware-${{ steps.date.outputs.today }}
         files: build/firmware-*.bin
+
