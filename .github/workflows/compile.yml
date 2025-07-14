@@ -1,72 +1,42 @@
-name: 🚀 Build & Release ESP8266 Firmware
+name: Compile and Release Firmware
 
 on:
   push:
-    paths:
-      - 'sketch/**'
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
-  contents: write  # Wajib untuk membuat Release
+  contents: write
 
 jobs:
   build:
-    name: 🔧 Compile & Release Firmware
     runs-on: ubuntu-latest
-
     steps:
-      - name: 📥 Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🛠️ Install Arduino CLI manually
-        run: |
-          curl -fsSL https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Linux_64bit.tar.gz | tar -xz
-          sudo mv arduino-cli /usr/local/bin/
-          arduino-cli version
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
 
-      - name: ⚙️ Setup Arduino CLI Config
-        run: |
-          arduino-cli config init
-          arduino-cli config add board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
-
-      - name: 📦 Install ESP8266 Core
+      - name: Install Platform & Libs
         run: |
           arduino-cli core update-index
           arduino-cli core install esp8266:esp8266
-
-      - name: 📚 Install Required Libraries
-        run: |
-          arduino-cli lib install "LiquidCrystal_I2C"
-          arduino-cli lib install "ArduinoOTA"
+          arduino-cli lib install "LiquidCrystal I2C"
+          arduino-cli lib install "Servo"
           arduino-cli lib install "UniversalTelegramBot"
+          arduino-cli lib install "ESP8266WebServer"
+          arduino-cli lib install "ESP8266WiFi"
+          arduino-cli lib install "ArduinoOTA"
+          # Add more install from .json or tar.gz if needed
 
-      - name: 🧪 Compile sketch
-        run: |
-          arduino-cli compile \
-            --fqbn esp8266:esp8266:nodemcuv2 \
-            --output-dir ./build \
-            ./sketch
+      - name: Compile Firmware
+        run: arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 ./sketch --output-dir ./build
 
-      - name: 📝 Rename Binary Output
-        run: |
-          mv ./build/sketch.ino.bin ./build/latest-release.bin
-
-      - name: 🚀 Create GitHub Release
+      - name: Release binary
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: 🌟 Latest Firmware Release
-          body: |
-            🔄 Firmware hasil kompilasi otomatis dari folder `sketch/`
-            📅 Dibuat pada: ${{ github.event.head_commit.timestamp }}
-            ✏️ Commit: ${{ github.event.head_commit.message }}
-          files: |
-            ./build/latest-release.bin
+          files: ./build/sketch.ino.bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 📦 Upload Firmware as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: latest-release
-          path: ./build/latest-release.bin
