@@ -31,9 +31,6 @@ jobs:
           arduino-cli lib install "LiquidCrystal I2C"
           arduino-cli lib install "Servo"
           arduino-cli lib install "UniversalTelegramBot"
-          arduino-cli lib install "ESP8266WebServer"
-          arduino-cli lib install "ESP8266WiFi"
-          arduino-cli lib install "ArduinoOTA"
 
       - name: Compile Firmware
         run: arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 ./sketch --output-dir ./build
