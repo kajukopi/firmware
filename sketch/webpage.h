@@ -3,8 +3,8 @@ const char MAIN_page[] PROGMEM = R"=====(<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <title>ESP8266 Control</title>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.4.0/mdb.min.css" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.4.0/css/all.min.css"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/4.20.0/mdb.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <style>
     body {padding:0;margin:0;}
