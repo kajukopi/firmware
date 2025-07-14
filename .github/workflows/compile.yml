@@ -1,4 +1,4 @@
-name: Compile ESP8266 API FIRBASE Sketch
+name: Compile firmware Sketch
 
 on:
   push:
@@ -64,17 +64,17 @@ jobs:
       run: |
         ls build
         for f in build/*.bin; do
-          mv "$f" "build/esp8266wifi12e-${{ steps.date.outputs.today }}.bin"
+          mv "$f" "build/firmware-${{ steps.date.outputs.today }}.bin"
         done
 
     - name: 🚀 Upload firmware artifact
       uses: actions/upload-artifact@v4
       with:
-        name: esp8266wifi12e-${{ steps.date.outputs.today }}
-        path: build/esp8266wifi12e-*.bin
+        name: firmware-${{ steps.date.outputs.today }}
+        path: build/firmware-*.bin
 
     - name: 🏷️ Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: esp8266wifi12e-${{ steps.date.outputs.today }}
-        files: build/esp8266wifi12e-*.bin
+        tag_name: firmware-${{ steps.date.outputs.today }}
+        files: build/firmware-*.bin
