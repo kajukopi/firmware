@@ -8,7 +8,7 @@
 #include "tokens.h"
 #include "webpage.h"
 
-LiquidCrystal_I2C lcd(0x27, 16, 2); // Cek alamat I2C kalau perlu
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Cek alamat jika perlu scan I2C
 Servo myservo;
 ESP8266WebServer server(80);
 WiFiClientSecure secured_client;
@@ -27,18 +27,17 @@ void setup() {
   Serial.begin(115200);
   lcd.init(); lcd.backlight();
   pinMode(RELAY_PIN, OUTPUT); digitalWrite(RELAY_PIN, LOW);
-  pinMode(LED_PIN, OUTPUT); digitalWrite(LED_PIN, HIGH); // LED_BUILTIN aktif LOW
+  pinMode(LED_PIN, OUTPUT); digitalWrite(LED_PIN, HIGH); // LOW = ON di Lolin
   myservo.attach(SERVO_PIN);
   lcd.setCursor(0,0); lcd.print("WiFi Connecting");
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500); lcd.print(".");
-  }
+  while (WiFi.status() != WL_CONNECTED) { delay(500); lcd.print("."); }
   IPAddress ip = WiFi.localIP();
-  String info = "IP:" + ip.toString() + " SSID:" + String(WIFI_SSID);
-  scrollText = info + " "; // animasi infinite
+  String info = "IP:"+ip.toString()+" SSID:"+String(WIFI_SSID)+" ";
+  while (info.length() < 48) info += " "; // biar scroll panjang
+  scrollText = info;
 
   lcd.clear(); lcd.print("IP:"); lcd.print(ip);
 
@@ -50,11 +49,10 @@ void setup() {
   secured_client.setInsecure();
 
   // Webserver
-  server.on("/", []() {
-    server.send_P(200, "text/html", MAIN_page);
-  });
+  server.on("/", []() { server.send_P(200, "text/html", MAIN_page); });
   server.on("/lcd", []() {
-    server.send(200, "text/plain", scrollText);
+    String show = scrollText.substring(scrollIdx, scrollIdx+16);
+    server.send(200, "text/plain", show);
   });
   server.on("/servo", []() {
     if(server.hasArg("pos")) myservo.write(server.arg("pos").toInt());
@@ -78,7 +76,7 @@ void setup() {
   });
   server.begin();
 
-  // Kirim notifikasi Telegram saat boot
+  // Telegram notif saat boot
   bot.sendMessage(CHAT_ID, "ESP8266 started! IP: " + ip.toString(), "");
 }
 
@@ -89,10 +87,9 @@ void loop() {
   // LCD animasi moving text
   if(millis() - lastLcdUpdate > 400){
     lcd.clear();
-    String line1 = scrollText.substring(scrollIdx, scrollIdx+16);
-    lcd.setCursor(0,0); lcd.print(line1);
+    if(scrollIdx > scrollText.length() - 16) scrollIdx = 0;
+    lcd.setCursor(0,0); lcd.print(scrollText.substring(scrollIdx, scrollIdx+16));
     scrollIdx++;
-    if(scrollIdx > scrollText.length()-16) scrollIdx = 0;
     lastLcdUpdate = millis();
   }
 
@@ -102,7 +99,8 @@ void loop() {
     for(int i=0;i<n;i++){
       String text = bot.messages[i].text;
       if(text == "/status") {
-        bot.sendMessage(CHAT_ID, "IP: "+WiFi.localIP().toString(), "");
+        String msg = "IP: "+WiFi.localIP().toString()+"\nSSID: "+String(WIFI_SSID);
+        bot.sendMessage(CHAT_ID, msg, "");
       }
     }
     lastBotTime = millis();
