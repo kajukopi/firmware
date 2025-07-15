@@ -1,31 +1,46 @@
 #ifndef WEBPAGE_H
 #define WEBPAGE_H
 
-const char WEB_page[] PROGMEM = R"rawliteral(
+const char MAIN_page[] PROGMEM = R"=====(
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>ESP OTA + Firebase</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/onsenui/css/onsenui.min.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/onsenui/css/onsen-css-components.min.css" />
-    <script src="https://cdn.jsdelivr.net/npm/onsenui/js/onsenui.min.js"></script>
-  </head>
-  <body>
-    <ons-page>
-      <ons-toolbar>
-        <div class="center">ESP8266 Control</div>
-      </ons-toolbar>
-      <div style="text-align: center; margin-top: 30px;">
-        <form action="/post" method="POST">
-          <ons-input name="message" placeholder="Message" float></ons-input><br><br>
-          <ons-button type="submit">Send to Firebase</ons-button>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OTA & LCD Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Onsen UI Stable -->
+  <link rel="stylesheet" href="https://unpkg.com/onsenui/css/onsenui.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/onsenui/css/onsen-css-components.min.css">
+  <script src="https://unpkg.com/onsenui/js/onsenui.min.js"></script>
+  <style>
+    body { background: #f9f9f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+    .center { text-align: center; margin-top: 2em; }
+  </style>
+</head>
+<body>
+  <ons-page>
+    <ons-toolbar>
+      <div class="center">OTA & LCD Control</div>
+    </ons-toolbar>
+    <div style="margin: 20px;">
+      <ons-card>
+        <div class="title">OTA Update</div>
+        <form method="POST" action="/update" enctype="multipart/form-data">
+          <input type="file" name="update">
+          <ons-button type="submit">Update</ons-button>
         </form>
-      </div>
-    </ons-page>
-  </body>
+      </ons-card>
+      <ons-card>
+        <div class="title">LCD Message</div>
+        <form action="/lcd" method="POST">
+          <ons-input name="msg" placeholder="Type text for LCD" modifier="underbar"></ons-input>
+          <ons-button type="submit">Play to LCD</ons-button>
+        </form>
+      </ons-card>
+    </div>
+  </ons-page>
+</body>
 </html>
-)rawliteral";
+)=====";
 
 #endif
