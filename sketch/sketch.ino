@@ -3,8 +3,7 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <ESP8266WebServer.h>
-#include <ESP8266HTTPClient.h>
-#include <FirebaseESP8266.h>
+#include <Firebase_ESP_Client.h>
 #include <ArduinoOTA.h>
 
 #include "tokens.h"
@@ -13,7 +12,7 @@
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 ESP8266WebServer server(80);
 
-FirebaseData firebaseData;
+FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig config;
 
@@ -21,7 +20,7 @@ void setupWiFi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Connecting...");
+  lcd.print("Connecting WiFi");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
   }
@@ -33,6 +32,7 @@ void setupWiFi() {
 }
 
 void setupOTA() {
+  ArduinoOTA.setHostname("ESP8266");
   ArduinoOTA.begin();
 }
 
@@ -42,6 +42,7 @@ void setupFirebase() {
   auth.user.email = USER_EMAIL;
   auth.user.password = USER_PASSWORD;
   Firebase.begin(&config, &auth);
+  Firebase.reconnectWiFi(true);
 }
 
 void handleRoot() {
@@ -50,9 +51,12 @@ void handleRoot() {
 
 void handlePost() {
   if (server.hasArg("message")) {
-    String message = server.arg("message");
-    Firebase.setString(firebaseData, "/messages", message);
-    server.send(200, "text/plain", "Posted!");
+    String msg = server.arg("message");
+    if (Firebase.RTDB.setString(&fbdo, "/messages", msg)) {
+      server.send(200, "text/plain", "Posted to Firebase!");
+    } else {
+      server.send(500, "text/plain", "Failed to post: " + fbdo.errorReason());
+    }
   } else {
     server.send(400, "text/plain", "Missing 'message'");
   }
