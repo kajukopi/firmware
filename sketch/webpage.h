@@ -3,137 +3,86 @@
 
 const char WEB_page[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>ESP8266 Panel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://unpkg.com/onsenui/css/onsenui.min.css">
-  <link rel="stylesheet" href="https://unpkg.com/onsenui/css/onsen-css-components.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
+  <!-- Bootstrap core CSS -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- MDBootstrap core CSS -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.2/mdb.min.css" rel="stylesheet" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"/>
   <style>
     .log-block {
       background: #f8f9fa;
       padding: 1rem;
       border-radius: 10px;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       max-height: 250px;
       overflow-y: auto;
       font-family: monospace;
       margin-top: 1em;
     }
-    .center {
-      text-align: center;
-    }
-    .spaced {
-      margin-top: 1em;
-      margin-bottom: 1em;
-    }
   </style>
 </head>
-<body>
-  <ons-navigator id="appNavigator" page="main.html"></ons-navigator>
-
-  <template id="main.html">
-    <ons-splitter>
-      <ons-splitter-side id="menu" side="left" width="220px" collapse swipeable>
-        <ons-page>
-          <div class="center spaced"><i class="fas fa-microchip"></i> ESP8266</div>
-          <ons-list>
-            <ons-list-item tappable onclick="fn.loadPage('home')">
-              <i class="fas fa-home"></i>&nbsp; Home
-            </ons-list-item>
-            <ons-list-item tappable onclick="fn.loadPage('update')">
-              <i class="fas fa-upload"></i>&nbsp; OTA Update
-            </ons-list-item>
-          </ons-list>
-        </ons-page>
-      </ons-splitter-side>
-
-      <ons-splitter-content id="content" page="home.html"></ons-splitter-content>
-    </ons-splitter>
-  </template>
-
-  <!-- Home Page -->
-  <template id="home.html">
-    <ons-page>
-      <ons-toolbar>
-        <div class="left">
-          <ons-toolbar-button onclick="fn.openMenu()">
-            <ons-icon icon="fa-bars"></ons-icon>
-          </ons-toolbar-button>
-        </div>
-        <div class="center">ESP8266 Control Panel</div>
-      </ons-toolbar>
-
-      <section style="margin: 1em;">
-        <ons-card>
-          <div class="center">
-            <h5><i class="fas fa-satellite-dish"></i> Device Info</h5>
+<body class="bg-light">
+  <div class="container py-4">
+    <div class="row mb-4">
+      <div class="col text-center">
+        <h2><i class="fas fa-microchip"></i> ESP8266 Control Panel</h2>
+      </div>
+    </div>
+    <div class="row">
+      <!-- Device Info -->
+      <div class="col-md-6 mb-4">
+        <div class="card shadow">
+          <div class="card-body text-center">
+            <h5 class="card-title"><i class="fas fa-satellite-dish"></i> Device Info</h5>
             <p><i class="fas fa-wifi"></i> IP Address: <span id="ip">-</span></p>
             <p><i class="fas fa-signal"></i> Signal Strength: <span id="signal">-</span></p>
           </div>
-        </ons-card>
-
-        <ons-card>
-          <div class="center">
-            <h5><i class="fas fa-terminal"></i> ESP Log</h5>
-            <div id="espLog" class="log-block"></div>
-          </div>
-        </ons-card>
-      </section>
-    </ons-page>
-  </template>
-
-  <!-- Update Page -->
-  <template id="update.html">
-    <ons-page>
-      <ons-toolbar>
-        <div class="left">
-          <ons-toolbar-button onclick="fn.openMenu()">
-            <ons-icon icon="fa-bars"></ons-icon>
-          </ons-toolbar-button>
         </div>
-        <div class="center">OTA Firmware Update</div>
-      </ons-toolbar>
-      <section style="margin: 1em;">
-        <ons-card>
-          <div class="center">
-            <h5><i class="fas fa-upload"></i> OTA Firmware Update</h5>
-            <form method="POST" action="/update" enctype="multipart/form-data" class="mt-4">
-              <input type="file" name="firmware" class="form-control mb-3" required style="margin-bottom: 1em;"/>
-              <ons-button type="submit" modifier="large--cta" style="background: #4caf50; color: white;">Upload</ons-button>
+      </div>
+      <!-- OTA Update -->
+      <div class="col-md-6 mb-4">
+        <div class="card shadow">
+          <div class="card-body text-center">
+            <h5 class="card-title"><i class="fas fa-upload"></i> OTA Firmware Update</h5>
+            <form method="POST" action="/update" enctype="multipart/form-data">
+              <input type="file" name="firmware" class="form-control mb-3" required />
+              <button type="submit" class="btn btn-success btn-block"><i class="fas fa-upload"></i> Upload</button>
             </form>
           </div>
-        </ons-card>
-      </section>
-    </ons-page>
-  </template>
-
-  <script src="https://unpkg.com/onsenui/js/onsenui.min.js"></script>
+        </div>
+      </div>
+    </div>
+    <!-- ESP Log -->
+    <div class="row">
+      <div class="col-12">
+        <div class="card shadow">
+          <div class="card-body">
+            <h5 class="card-title text-center"><i class="fas fa-terminal"></i> ESP Log</h5>
+            <div id="espLog" class="log-block"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- MDBootstrap JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.2/mdb.min.js"></script>
   <script>
-    window.fn = {};
-    fn.openMenu = function() {
-      document.getElementById('menu').open();
-    };
-    fn.loadPage = function(page) {
-      document.getElementById('content').load(page + '.html');
-      document.getElementById('menu').close();
-    };
-
-    // Update status info
+    // Status updater
     async function updateStatus() {
       try {
         const res = await fetch("/status");
         const data = await res.json();
         document.getElementById('ip').textContent = data.ip;
         document.getElementById('signal').textContent = data.signal;
-      } catch (err) {
-        // silent
-      }
+      } catch (err) {}
     }
-
-    // Update ESP log
+    // Log updater
     async function updateESPLog() {
       try {
         const res = await fetch("/log");
@@ -143,28 +92,12 @@ const char WEB_page[] PROGMEM = R"rawliteral(
           logEl.textContent = data;
           logEl.scrollTop = logEl.scrollHeight;
         }
-      } catch (err) {
-        // silent
-      }
+      } catch (err) {}
     }
-
-    // Init intervals when home page is shown
-    let statusInt = null, logInt = null;
-
-    document.addEventListener('init', function(event) {
-      if (event.target.matches('#content')) {
-        // do nothing
-      }
-      if (event.target.id === undefined) return;
-      if (event.target.id === "home.html") {
-        updateStatus(); updateESPLog();
-        statusInt = setInterval(updateStatus, 3000);
-        logInt = setInterval(updateESPLog, 3000);
-      } else {
-        if (statusInt) clearInterval(statusInt);
-        if (logInt) clearInterval(logInt);
-      }
-    });
+    setInterval(updateStatus, 3000);
+    setInterval(updateESPLog, 3000);
+    updateStatus();
+    updateESPLog();
   </script>
 </body>
 </html>
