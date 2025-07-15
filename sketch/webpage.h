@@ -34,10 +34,25 @@ const char WEB_page[] PROGMEM = R"rawliteral(
         <h2><i class="fas fa-microchip"></i> ESP8266 Control Panel</h2>
       </div>
     </div>
-    <div class="row">
-      <!-- Device Info -->
-      <div class="col-md-6 mb-4">
-        <div class="card shadow">
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs mb-3" id="panelTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="device-tab" data-bs-toggle="tab" data-bs-target="#device" type="button" role="tab"><i class="fas fa-satellite-dish"></i> Device Info</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="ota-tab" data-bs-toggle="tab" data-bs-target="#ota" type="button" role="tab"><i class="fas fa-upload"></i> OTA Update</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="log-tab" data-bs-toggle="tab" data-bs-target="#log" type="button" role="tab"><i class="fas fa-terminal"></i> ESP Log</button>
+      </li>
+    </ul>
+
+    <!-- Tabs Content -->
+    <div class="tab-content" id="panelTabsContent">
+      <!-- Device Info Tab -->
+      <div class="tab-pane fade show active" id="device" role="tabpanel">
+        <div class="card shadow mb-4">
           <div class="card-body text-center">
             <h5 class="card-title"><i class="fas fa-satellite-dish"></i> Device Info</h5>
             <p><i class="fas fa-wifi"></i> IP Address: <span id="ip">-</span></p>
@@ -45,9 +60,10 @@ const char WEB_page[] PROGMEM = R"rawliteral(
           </div>
         </div>
       </div>
-      <!-- OTA Update -->
-      <div class="col-md-6 mb-4">
-        <div class="card shadow">
+
+      <!-- OTA Update Tab -->
+      <div class="tab-pane fade" id="ota" role="tabpanel">
+        <div class="card shadow mb-4">
           <div class="card-body text-center">
             <h5 class="card-title"><i class="fas fa-upload"></i> OTA Firmware Update</h5>
             <form method="POST" action="/update" enctype="multipart/form-data">
@@ -57,11 +73,10 @@ const char WEB_page[] PROGMEM = R"rawliteral(
           </div>
         </div>
       </div>
-    </div>
-    <!-- ESP Log -->
-    <div class="row">
-      <div class="col-12">
-        <div class="card shadow">
+
+      <!-- ESP Log Tab -->
+      <div class="tab-pane fade" id="log" role="tabpanel">
+        <div class="card shadow mb-4">
           <div class="card-body">
             <h5 class="card-title text-center"><i class="fas fa-terminal"></i> ESP Log</h5>
             <div id="espLog" class="log-block"></div>
@@ -70,7 +85,9 @@ const char WEB_page[] PROGMEM = R"rawliteral(
       </div>
     </div>
   </div>
-  <!-- MDBootstrap JS -->
+
+  <!-- Bootstrap JS (needed for tabs to work) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.2/mdb.min.js"></script>
   <script>
     // Status updater
@@ -82,6 +99,7 @@ const char WEB_page[] PROGMEM = R"rawliteral(
         document.getElementById('signal').textContent = data.signal;
       } catch (err) {}
     }
+
     // Log updater
     async function updateESPLog() {
       try {
@@ -94,6 +112,7 @@ const char WEB_page[] PROGMEM = R"rawliteral(
         }
       } catch (err) {}
     }
+
     setInterval(updateStatus, 3000);
     setInterval(updateESPLog, 3000);
     updateStatus();
