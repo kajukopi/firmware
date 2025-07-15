@@ -1,92 +1,67 @@
-#include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include <ESPAsyncWebServer.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-#include <ESP8266WebServer.h>
-#include <Firebase_ESP_Client.h>
-#include <ArduinoOTA.h>
-
 #include "tokens.h"
 #include "webpage.h"
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <ESP8266HTTPUpdateServer.h>
 
-// Inisialisasi LCD I2C dengan alamat 0x27
-LiquidCrystal_I2C lcd(0x27, 16, 2);
-
-// Web server di port 80
-ESP8266WebServer server(80);
-
-// Firebase instance
-FirebaseData fbdo;
-FirebaseAuth auth;
-FirebaseConfig config;
-
-void setupWiFi() {
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Connecting...");
-
-  int dot = 0;
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    lcd.setCursor(dot++ % 16, 1);
-    lcd.print(".");
-  }
-
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("IP:");
-  lcd.setCursor(0, 1);
-  lcd.print(WiFi.localIP());
-}
-
-void setupOTA() {
-  ArduinoOTA.setHostname("ESP8266");
-  ArduinoOTA.begin();
-}
-
-void setupFirebase() {
-  config.api_key = API_KEY;
-  config.database_url = DATABASE_URL;
-  auth.user.email = USER_EMAIL;
-  auth.user.password = USER_PASSWORD;
-
-  Firebase.begin(&config, &auth);
-  Firebase.reconnectWiFi(true);
-}
-
-void handleRoot() {
-  server.send_P(200, "text/html", WEB_page);
-}
-
-void handlePost() {
-  if (server.hasArg("message")) {
-    String msg = server.arg("message");
-    if (Firebase.RTDB.setString(&fbdo, "/messages", msg)) {
-      server.send(200, "text/plain", "Posted to Firebase!");
-    } else {
-      server.send(500, "text/plain", "Error: " + fbdo.errorReason());
-    }
-  } else {
-    server.send(400, "text/plain", "Missing 'message' parameter");
-  }
-}
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Alamat LCD standar 0x27
+AsyncWebServer server(80);
+ESP8266HTTPUpdateServer httpUpdater;
 
 void setup() {
   Serial.begin(115200);
-  lcd.begin(16, 2);       // ✅ Fix: tambahkan parameter
+
+  lcd.begin();
   lcd.backlight();
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Connecting WiFi");
 
-  setupWiFi();
-  setupOTA();
-  setupFirebase();
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-  server.on("/", handleRoot);
-  server.on("/post", HTTP_POST, handlePost);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("WiFi Connected");
+  lcd.setCursor(0,1);
+  lcd.print(WiFi.localIP());
+
+  // OTA via webpage
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/html", MAIN_page);
+  });
+
+  // OTA firmware update
+  httpUpdater.setup(&server);
+
+  // LCD message handler
+  server.on("/lcd", HTTP_POST, [](AsyncWebServerRequest *request){
+    String msg;
+    if (request->hasParam("msg", true)) {
+      msg = request->getParam("msg", true)->value();
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print(msg.substring(0,16));
+      if(msg.length() > 16) {
+        lcd.setCursor(0,1);
+        lcd.print(msg.substring(16,32));
+      }
+    }
+    request->redirect("/");
+  });
+
   server.begin();
 }
 
 void loop() {
-  server.handleClient();
-  ArduinoOTA.handle();
+  // nothing to do
 }
