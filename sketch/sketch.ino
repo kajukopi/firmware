@@ -28,17 +28,7 @@ void addLog(String msg) {
 
 String getSignalStrength() {
   int rssi = WiFi.RSSI();
-  String bar = "";
-  char block = (char)255; // karakter blok penuh
-
-  if (rssi > -50)       bar = String(block) + block + block + block + block;
-  else if (rssi > -60)  bar = String(block) + block + block + block;
-  else if (rssi > -70)  bar = String(block) + block + block;
-  else if (rssi > -80)  bar = String(block) + block;
-  else if (rssi > -90)  bar = String(block);
-  else                  bar = "-----"; // tidak ada sinyal
-
-  return String(rssi) + " dBm (" + bar + ")";
+  return String(rssi) + " dBm";
 }
 
 void displayIp() {
