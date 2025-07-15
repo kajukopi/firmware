@@ -3,7 +3,7 @@
 #include <ESP8266HTTPUpdateServer.h>
 #include <ArduinoOTA.h>
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
+#include "lcd.h"
 #include "webpage.h"
 
 const char* ssid = "karimroy";
@@ -11,10 +11,6 @@ const char* password = "09871234";
 
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater;
-LiquidCrystal_I2C lcd(0x27, 16, 2);
-
-unsigned long lcdRestoreTime = 0;
-unsigned long lastStatusDisplay = 0;
 
 String logBuffer = "";
 String currentIp = "";
@@ -31,42 +27,21 @@ String getSignalStrength() {
   return String(rssi) + " dBm";
 }
 
-void displayIp() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("WiFi Connected!");
-  lcd.setCursor(0, 1);
-  lcd.print(currentIp);
-}
-
-void showTempMessage(String line1, String line2 = "") {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(line1);
-  lcd.setCursor(0, 1);
-  lcd.print(line2);
-  lcdRestoreTime = millis() + 3000;
-}
-
 void setup() {
   Serial.begin(115200);
-  lcd.init();
-  lcd.backlight();
-  lcd.setCursor(0, 0); lcd.print("ESP8266");
-  lcd.setCursor(0, 1); lcd.print("Web Server");
-  delay(2000);
+  lcdInit();
+  lcdShowStartup();
 
-  lcd.clear();
-  lcd.setCursor(0, 0); lcd.print("Connecting WiFi");
+  lcdShowConnecting();
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
-    lcd.setCursor(0, 1); lcd.print("Searching...");
+    lcdShowSearching();
     delay(1000);
   }
 
   currentIp = WiFi.localIP().toString();
   addLog("✅ WiFi Connected! IP: " + currentIp);
-  displayIp();
+  lcdShowIp(currentIp);
 
   server.on("/", []() {
     server.send_P(200, "text/html", WEB_page);
@@ -85,7 +60,7 @@ void setup() {
   server.begin();
 
   ArduinoOTA.onStart([]() {
-    showTempMessage("OTA Update Start");
+    lcdShowTempMessage("OTA Update Start");
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     lcd.setCursor(0, 1);
@@ -94,12 +69,12 @@ void setup() {
     lcd.print("%   ");
   });
   ArduinoOTA.onEnd([]() {
-    showTempMessage("OTA Update Done");
+    lcdShowTempMessage("OTA Update Done");
     delay(2000);
-    displayIp();
+    lcdShowIp(currentIp);
   });
   ArduinoOTA.onError([](ota_error_t error) {
-    showTempMessage("OTA Error:", String(error));
+    lcdShowTempMessage("OTA Error:", String(error));
   });
   ArduinoOTA.begin();
 }
@@ -110,17 +85,12 @@ void loop() {
 
   if (lcdRestoreTime > 0 && millis() > lcdRestoreTime) {
     lcdRestoreTime = 0;
-    displayIp();
+    lcdShowIp(currentIp);
   }
 
   if (lcdRestoreTime == 0 && millis() - lastStatusDisplay > 10000) {
     lastStatusDisplay = millis();
     String rssiStr = getSignalStrength();
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Signal Strength");
-    lcd.setCursor(0, 1);
-    lcd.print(rssiStr.substring(0, 16));
-    lcdRestoreTime = millis() + 2000;
+    lcdShowSignalStrength(rssiStr);
   }
 }
