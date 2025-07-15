@@ -32,7 +32,7 @@ jobs:
         run: |
           arduino-cli lib install "LiquidCrystal_I2C"
           arduino-cli lib install "ArduinoOTA"
-          arduino-cli lib install "Firebase_ESP_Client"
+          git clone https://github.com/mobizt/Firebase-ESP-Client.git $HOME/Arduino/libraries/Firebase_ESP_Client
 
       - name: Compile Sketch
         run: |
