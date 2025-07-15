@@ -16,13 +16,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Arduino CLI
-        uses: arduino/setup-arduino-cli@v1
-        with:
-          version: 0.35.2
-
-      - name: Install ESP8266 Board
+      - name: Install Arduino CLI manually
         run: |
+          curl -fsSL https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Linux_64bit.tar.gz | tar xz
+          sudo mv arduino-cli /usr/local/bin/
+
+      - name: Install ESP8266 Board Platform
+        run: |
+          arduino-cli config init
           arduino-cli core update-index
           arduino-cli core install esp8266:esp8266
 
