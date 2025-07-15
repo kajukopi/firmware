@@ -1,11 +1,9 @@
-name: Compile and Release Firmware
+name: Compile and Release Binary
 
 on:
   push:
-    paths:
-      - 'sketch/**.ino'
-      - 'sketch/tokens.h'
-  workflow_dispatch:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -13,31 +11,27 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Arduino CLI
         uses: arduino/setup-arduino-cli@v1
-        with:
-          version: latest
 
       - name: Install libraries
         run: |
           arduino-cli lib install "LiquidCrystal_I2C"
+          arduino-cli lib install "FirebaseESP8266"
           arduino-cli lib install "ESP8266WebServer"
-          arduino-cli lib install "ESP8266HTTPUpdateServer"
           arduino-cli lib install "ArduinoOTA"
-          arduino-cli lib install "UniversalTelegramBot"
-          arduino-cli lib install "Servo"
 
       - name: Compile sketch
         run: |
-          arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 sketch/sketch.ino
+          arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 sketch/sketch.ino --output-dir ./build
 
       - name: Release firmware
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: firmware
-          files: sketch/build/esp8266.esp8266.nodemcuv2/sketch.ino.bin
-          name: "Firmware - ${{ github.run_number }} - ${{ github.event.head_commit.timestamp }}"
+          files: build/sketch.ino.bin
+          tag_name: firmware-${{ github.run_number }}
