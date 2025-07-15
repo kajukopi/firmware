@@ -1,4 +1,4 @@
-name: Compile and Release Binary
+name: Compile and Release Firmware
 
 on:
   push:
@@ -19,26 +19,30 @@ jobs:
       - name: Set up Arduino CLI
         uses: arduino/setup-arduino-cli@v1
         with:
-          version: latest
+          version: 0.35.2
 
-      - name: Install board platform
+      - name: Install ESP8266 Board
         run: |
           arduino-cli core update-index
           arduino-cli core install esp8266:esp8266
 
-      - name: Install libraries
+      - name: Install Libraries
         run: |
           arduino-cli lib install "LiquidCrystal_I2C"
           arduino-cli lib install "ESP8266WebServer"
           arduino-cli lib install "ArduinoOTA"
           arduino-cli lib install "Firebase_ESP_Client"
 
-      - name: Compile sketch
+      - name: Compile Sketch
         run: |
-          arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 sketch/sketch.ino --output-dir ./build
+          arduino-cli compile \
+            --fqbn esp8266:esp8266:nodemcuv2 \
+            sketch/sketch.ino \
+            --output-dir ./build
 
-      - name: Release firmware
+      - name: Release Firmware
         uses: softprops/action-gh-release@v1
         with:
           files: build/sketch.ino.bin
           tag_name: firmware-${{ github.run_number }}
+          name: Firmware Release ${{ github.run_number }}
